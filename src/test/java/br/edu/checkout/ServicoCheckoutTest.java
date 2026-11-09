@@ -64,6 +64,10 @@ class ServicoCheckoutTest {
                 estoqueGateway, pagamentoGateway, pedidoRepository, notificador);
     }
 
+    private static SolicitacaoCheckout solicitacao(int quantidade, BigDecimal precoUnitario) {
+        return new SolicitacaoCheckout(CLIENTE, EMAIL, SKU, quantidade, precoUnitario);
+    }
+
     static Stream<Arguments> solicitacoesInvalidas() {
         return Stream.of(
                 Arguments.of("clienteId nulo", new SolicitacaoCheckout(null, EMAIL, SKU, 1, PRECO)),
@@ -97,11 +101,10 @@ class ServicoCheckoutTest {
         BigDecimal total = new BigDecimal("59.70");
         when(estoqueGateway.reservar(SKU, 3)).thenReturn(true);
         when(pagamentoGateway.cobrar(CLIENTE, total)).thenReturn(new Pagamento(true, "TX-1"));
-        when(pedidoRepository.salvar(new PedidoConfirmado(CLIENTE, EMAIL, SKU, 3, total, "TX-1")))
-                .thenReturn("PED-42");
+        PedidoConfirmado pedidoEsperado = new PedidoConfirmado(CLIENTE, EMAIL, SKU, 3, total, "TX-1");
+        when(pedidoRepository.salvar(pedidoEsperado)).thenReturn("PED-42");
 
-        ResultadoCheckout resultado =
-                servico.finalizar(new SolicitacaoCheckout(CLIENTE, EMAIL, SKU, 3, PRECO));
+        ResultadoCheckout resultado = servico.finalizar(solicitacao(3, PRECO));
 
         assertEquals("PED-42", resultado.numeroPedido());
         assertEquals(total, resultado.total());
@@ -110,8 +113,7 @@ class ServicoCheckoutTest {
         InOrder ordem = inOrder(estoqueGateway, pagamentoGateway, pedidoRepository, notificador);
         ordem.verify(estoqueGateway, times(1)).reservar(SKU, 3);
         ordem.verify(pagamentoGateway, times(1)).cobrar(CLIENTE, total);
-        ordem.verify(pedidoRepository, times(1))
-                .salvar(new PedidoConfirmado(CLIENTE, EMAIL, SKU, 3, total, "TX-1"));
+        ordem.verify(pedidoRepository, times(1)).salvar(pedidoEsperado);
         ordem.verify(notificador, times(1)).enviarConfirmacao(EMAIL, "PED-42", total);
         verify(estoqueGateway, never()).liberar(anyString(), anyInt());
     }
