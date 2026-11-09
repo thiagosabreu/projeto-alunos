@@ -41,7 +41,11 @@ public final class ServicoCheckout {
         String numeroPedido = pedidoRepository.salvar(new PedidoConfirmado(
                 solicitacao.clienteId(), solicitacao.email(), solicitacao.sku(),
                 solicitacao.quantidade(), total, pagamento.transacaoId()));
-        notificador.enviarConfirmacao(solicitacao.email(), numeroPedido, total);
+        try {
+            notificador.enviarConfirmacao(solicitacao.email(), numeroPedido, total);
+        } catch (FalhaNotificacaoException falha) {
+            return new ResultadoCheckout(numeroPedido, total, false);
+        }
         return new ResultadoCheckout(numeroPedido, total, true);
     }
 
