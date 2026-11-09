@@ -27,26 +27,40 @@ public final class ServicoCheckout {
         if (!estoqueGateway.reservar(solicitacao.sku(), solicitacao.quantidade())) {
             throw new EstoqueInsuficienteException();
         }
+        Pagamento pagamento = cobrar(solicitacao, total);
+        String numeroPedido = pedidoRepository.salvar(new PedidoConfirmado(
+                solicitacao.clienteId(), solicitacao.email(), solicitacao.sku(),
+                solicitacao.quantidade(), total, pagamento.transacaoId()));
+        boolean notificacaoEnviada = notificar(solicitacao.email(), numeroPedido, total);
+        return new ResultadoCheckout(numeroPedido, total, notificacaoEnviada);
+    }
+
+    private Pagamento cobrar(SolicitacaoCheckout solicitacao, BigDecimal total) {
         Pagamento pagamento;
         try {
             pagamento = pagamentoGateway.cobrar(solicitacao.clienteId(), total);
         } catch (FalhaPagamentoException falha) {
-            estoqueGateway.liberar(solicitacao.sku(), solicitacao.quantidade());
+            liberarReserva(solicitacao);
             throw falha;
         }
         if (!pagamento.aprovado()) {
-            estoqueGateway.liberar(solicitacao.sku(), solicitacao.quantidade());
+            liberarReserva(solicitacao);
             throw new PagamentoRecusadoException();
         }
-        String numeroPedido = pedidoRepository.salvar(new PedidoConfirmado(
-                solicitacao.clienteId(), solicitacao.email(), solicitacao.sku(),
-                solicitacao.quantidade(), total, pagamento.transacaoId()));
+        return pagamento;
+    }
+
+    private void liberarReserva(SolicitacaoCheckout solicitacao) {
+        estoqueGateway.liberar(solicitacao.sku(), solicitacao.quantidade());
+    }
+
+    private boolean notificar(String email, String numeroPedido, BigDecimal total) {
         try {
-            notificador.enviarConfirmacao(solicitacao.email(), numeroPedido, total);
+            notificador.enviarConfirmacao(email, numeroPedido, total);
+            return true;
         } catch (FalhaNotificacaoException falha) {
-            return new ResultadoCheckout(numeroPedido, total, false);
+            return false;
         }
-        return new ResultadoCheckout(numeroPedido, total, true);
     }
 
     private static BigDecimal calcularTotal(SolicitacaoCheckout solicitacao) {
