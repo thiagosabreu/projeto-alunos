@@ -1,12 +1,14 @@
 package br.edu.checkout;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -223,5 +225,25 @@ class ServicoCheckoutTest {
         ordem.verify(pagamentoGateway, times(1)).cobrar(CLIENTE, total);
         ordem.verify(estoqueGateway, times(1)).liberar(SKU, 2);
         verifyNoInteractions(pedidoRepository, notificador);
+    }
+
+    @Test
+    void deveManterCompraAprovadaQuandoNotificacaoFalhar() {
+        BigDecimal total = new BigDecimal("59.70");
+        when(estoqueGateway.reservar(SKU, 3)).thenReturn(true);
+        when(pagamentoGateway.cobrar(CLIENTE, total)).thenReturn(new Pagamento(true, "TX-1"));
+        when(pedidoRepository.salvar(any(PedidoConfirmado.class))).thenReturn("PED-42");
+        doThrow(new FalhaNotificacaoException("SMTP fora do ar"))
+                .when(notificador).enviarConfirmacao(EMAIL, "PED-42", total);
+
+        ResultadoCheckout resultado = servico.finalizar(solicitacao(3, PRECO));
+
+        assertEquals("PED-42", resultado.numeroPedido());
+        assertEquals(total, resultado.total());
+        assertFalse(resultado.notificacaoEnviada());
+        verify(pagamentoGateway, times(1)).cobrar(CLIENTE, total);
+        verify(pedidoRepository, times(1)).salvar(any(PedidoConfirmado.class));
+        verify(notificador, times(1)).enviarConfirmacao(EMAIL, "PED-42", total);
+        verify(estoqueGateway, never()).liberar(anyString(), anyInt());
     }
 }
