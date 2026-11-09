@@ -21,9 +21,13 @@ public final class ServicoCheckout {
     }
 
     public ResultadoCheckout finalizar(SolicitacaoCheckout solicitacao) {
+        validar(solicitacao);
+        throw new UnsupportedOperationException("Implemente por TDD");
+    }
+
+    private static void validar(SolicitacaoCheckout solicitacao) {
         if (solicitacao == null) {
             throw new IllegalArgumentException("Solicitação não pode ser nula");
         }
-        throw new UnsupportedOperationException("Implemente por TDD");
     }
 }
