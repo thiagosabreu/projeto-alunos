@@ -29,5 +29,20 @@ public final class ServicoCheckout {
         if (solicitacao == null) {
             throw new IllegalArgumentException("Solicitação não pode ser nula");
         }
+        if (solicitacao.clienteId() == null || solicitacao.clienteId().isBlank()) {
+            throw new IllegalArgumentException("clienteId é obrigatório");
+        }
+        if (solicitacao.email() == null || solicitacao.email().isBlank()) {
+            throw new IllegalArgumentException("email é obrigatório");
+        }
+        if (solicitacao.sku() == null || solicitacao.sku().isBlank()) {
+            throw new IllegalArgumentException("sku é obrigatório");
+        }
+        if (solicitacao.quantidade() <= 0) {
+            throw new IllegalArgumentException("quantidade deve ser positiva");
+        }
+        if (solicitacao.precoUnitario() == null || solicitacao.precoUnitario().signum() <= 0) {
+            throw new IllegalArgumentException("precoUnitario deve ser positivo");
+        }
     }
 }
