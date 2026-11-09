@@ -177,4 +177,16 @@ class ServicoCheckoutTest {
         assertEquals(total, salvo.total());
         assertEquals("TX-99", salvo.transacaoId());
     }
+
+    @Test
+    void deveLancarEstoqueInsuficienteSemCobrarRegistrarNotificarNemLiberar() {
+        when(estoqueGateway.reservar(SKU, 2)).thenReturn(false);
+
+        assertThrows(EstoqueInsuficienteException.class,
+                () -> servico.finalizar(solicitacao(2, PRECO)));
+
+        verify(estoqueGateway, times(1)).reservar(SKU, 2);
+        verify(estoqueGateway, never()).liberar(anyString(), anyInt());
+        verifyNoInteractions(pagamentoGateway, pedidoRepository, notificador);
+    }
 }
